@@ -5,24 +5,33 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import com.example.mylocation.database.LocationEntity
+import com.example.mylocation.database.LocationRoom
+import com.example.mylocation.database.LocationRoom.Companion.getDatabase
 import com.example.mylocation.util.PERMISSION_ID
 import com.example.mylocation.util.REQUEST_CHECK_STATE
 import com.example.mylocation.util.isLocationEnabled
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.RuntimeExecutionException
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.*
 
 class MainActivity : BaseActivity() {
     var fusedLocationClient: FusedLocationProviderClient? = null
     private lateinit var locationUpdates:LocationCallback
+    private lateinit var database: LocationRoom
+    private  var size: Int = 0
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
-
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        database = getDatabase(this)
+        val scope  = CoroutineScope(Job() + Dispatchers.Main)
+
 
         recordLocationButton.setOnClickListener {
             if (isLocationEnabled(this)) {
@@ -48,8 +57,11 @@ class MainActivity : BaseActivity() {
                 }
                 locationUpdates = object : LocationCallback() {
                     override fun onLocationResult(lr: LocationResult) {
-                        Toast.makeText(applicationContext,"$lr",Toast.LENGTH_SHORT).show()
-
+                        Toast.makeText(applicationContext,lr.toString(),Toast.LENGTH_SHORT)
+                        scope.launch {
+                            saveLongLat( lr.lastLocation.longitude,
+                            lr.lastLocation.latitude)
+                        }
                     }
                 }
 
@@ -63,9 +75,13 @@ class MainActivity : BaseActivity() {
         }
 
         stopLocationButton.setOnClickListener {
-            isLocationEnabled(this)
-            stopPeriodicLocation()
-            Toast.makeText(this, isLocationEnabled(this).toString(),Toast.LENGTH_SHORT).show()
+            //  stopPeriodicLocation()
+
+            scope.launch(Dispatchers.IO) {
+                size = database.databaseDao().getLongLat().size
+                //    startActivity(Intent(this,MapsActivity::class.java))
+            }
+            Toast.makeText(this, size.toString(), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -92,4 +108,12 @@ private fun stopPeriodicLocation(){
     fusedLocationClient?.removeLocationUpdates(locationUpdates)
 }
 
+    suspend fun saveLongLat(longitude:Double,latitude: Double){
+        withContext(Dispatchers.IO) {
+            database.databaseDao().insertLongLat(
+                LocationEntity(longitude,latitude)
+            )
+            //Toast.makeText(applicationContext,"$lr",Toast.LENGTH_SHORT).show()
+        }
+    }
 }
