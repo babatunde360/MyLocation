@@ -8,7 +8,6 @@ import android.widget.Toast
 import com.example.mylocation.database.LocationEntity
 import com.example.mylocation.database.LocationRoom
 import com.example.mylocation.database.LocationRoom.Companion.getDatabase
-import com.example.mylocation.util.PERMISSION_ID
 import com.example.mylocation.util.REQUEST_CHECK_STATE
 import com.example.mylocation.util.isLocationEnabled
 import com.google.android.gms.location.*
@@ -20,14 +19,13 @@ class MainActivity : BaseActivity() {
     var fusedLocationClient: FusedLocationProviderClient? = null
     private lateinit var locationUpdates:LocationCallback
     private lateinit var database: LocationRoom
-    private  var size: Int = 0
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         database = getDatabase(this)
         val scope  = CoroutineScope(Job() + Dispatchers.Main)
@@ -35,20 +33,21 @@ class MainActivity : BaseActivity() {
 
         recordLocationButton.setOnClickListener {
             if (isLocationEnabled(this)) {
+                scope.launch { deleteDb()}
+
                 val reqSetting = LocationRequest.create().apply {
                     fastestInterval = 1000
                     interval = 5000
                     priority = LocationRequest.PRIORITY_HIGH_ACCURACY
                     smallestDisplacement = 1.0f
                 }
-
                 val builder = LocationSettingsRequest.Builder()
                     .addLocationRequest(reqSetting)
 
                 val client = LocationServices.getSettingsClient(this)
 
 
-                client.checkLocationSettings(builder.build()).addOnCompleteListener { task ->
+                client.checkLocationSettings(builder.build()).addOnCompleteListener { _ ->
                     try {
                     } catch (e: RuntimeExecutionException) {
                         e.printStackTrace()
@@ -57,7 +56,6 @@ class MainActivity : BaseActivity() {
                 }
                 locationUpdates = object : LocationCallback() {
                     override fun onLocationResult(lr: LocationResult) {
-                        Toast.makeText(applicationContext,lr.toString(),Toast.LENGTH_SHORT)
                         scope.launch {
                             saveLongLat( lr.lastLocation.longitude,
                             lr.lastLocation.latitude)
@@ -69,19 +67,21 @@ class MainActivity : BaseActivity() {
                     locationUpdates,
                     null)
 
-            } else {
-                currentLocation.text = "Permission not granted"
+                Toast.makeText(this,"Starts recording your location",
+                    Toast.LENGTH_SHORT).show()
+
             }
         }
 
         stopLocationButton.setOnClickListener {
+            if (this::locationUpdates.isInitialized){
               stopPeriodicLocation()
-
-            scope.launch(Dispatchers.IO) {
-                size = database.databaseDao().getLongLat().size
-            }
             startActivity(Intent(this,MapsActivity::class.java))
-            Toast.makeText(this, size.toString(), Toast.LENGTH_SHORT).show()
+            }else{
+                Toast.makeText(this,"showing your previously recorded location",
+                    Toast.LENGTH_LONG).show()
+                startActivity(Intent(this,MapsActivity::class.java))
+            }
         }
     }
 
@@ -90,23 +90,19 @@ class MainActivity : BaseActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode and 0xFFFF == REQUEST_CHECK_STATE) {
             Log.e("LOG", "Back from REQUEST_CHECK_STATE")
-            Toast.makeText(this, "Back from REQUEST_CHECK_STATE",Toast.LENGTH_SHORT).show()
         }
     }
 
-
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        when (requestCode) {
-            PERMISSION_ID -> {
-
-            }
-        }
-    }
 
 private fun stopPeriodicLocation(){
     fusedLocationClient?.removeLocationUpdates(locationUpdates)
 }
+
+    suspend fun deleteDb(){
+        withContext(Dispatchers.IO){
+            database.databaseDao().deleteLongLat()
+        }
+    }
 
     suspend fun saveLongLat(longitude:Double,latitude: Double){
         withContext(Dispatchers.IO) {

@@ -12,6 +12,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
+import com.google.android.gms.maps.model.RoundCap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,11 +45,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .clickable(true)
             .add(*listLatLng.asDomain()))
         polyline.color = ContextCompat.getColor(this,R.color.colorPrimaryDark)
+        polyline.endCap = RoundCap()
 
         val listLatLngSize = listLatLng.asDomain().size
         mMap.addMarker(MarkerOptions().position(listLatLng.asDomain()[0]).title("Starting point"))
         mMap.addMarker(MarkerOptions().position(listLatLng.asDomain()[listLatLngSize-1]).title("End zone"))
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(listLatLng.asDomain()[0],7f))
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(listLatLng.asDomain()[0],15f))
     }
 
 }
