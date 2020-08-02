@@ -6,6 +6,8 @@ import android.content.Intent
 import android.location.LocationManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
+import com.example.mylocation.database.LocationEntity
+import com.google.android.gms.maps.model.LatLng
 
 const val PERMISSION_ID = 234
 const val REQUEST_CHECK_STATE = 12300
@@ -36,4 +38,13 @@ fun isLocationEnabled(context: Context):Boolean{
             .show()
     }
     return gpsEnabled && networkEnabled
+}
+
+fun List<LocationEntity>.asDomain():Array<LatLng>{
+    return map{
+        LatLng(
+            it.latitude,
+            it.longitude
+        )
+    }.toTypedArray()
 }

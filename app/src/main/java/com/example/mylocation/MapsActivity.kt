@@ -2,42 +2,53 @@ package com.example.mylocation
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.example.mylocation.database.LocationEntity
+import com.example.mylocation.database.LocationRoom
+import com.example.mylocation.util.asDomain
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
+    private lateinit var listLatLng:List<LocationEntity>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_maps)
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        val database = LocationRoom.getDatabase(this)
+        val scope  = CoroutineScope(Job() + Dispatchers.Main)
+
+        scope.launch(Dispatchers.IO) {
+            listLatLng = database.databaseDao().getLongLat()
+        }
+
         val mapFragment = supportFragmentManager
                 .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        // Add a marker in Sydney and move the camera
-        val sydney = LatLng(-34.0, 151.0)
-        mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
+        val polyline = googleMap.addPolyline(PolylineOptions()
+            .clickable(true)
+            .add(*listLatLng.asDomain()))
+        polyline.color = ContextCompat.getColor(this,R.color.colorPrimaryDark)
+
+        val listLatLngSize = listLatLng.asDomain().size
+        mMap.addMarker(MarkerOptions().position(listLatLng.asDomain()[0]).title("Starting point"))
+        mMap.addMarker(MarkerOptions().position(listLatLng.asDomain()[listLatLngSize-1]).title("End zone"))
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(listLatLng.asDomain()[0],7f))
     }
 
 }

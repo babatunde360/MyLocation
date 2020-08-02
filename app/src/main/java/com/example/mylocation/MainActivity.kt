@@ -75,12 +75,12 @@ class MainActivity : BaseActivity() {
         }
 
         stopLocationButton.setOnClickListener {
-            //  stopPeriodicLocation()
+              stopPeriodicLocation()
 
             scope.launch(Dispatchers.IO) {
                 size = database.databaseDao().getLongLat().size
-                //    startActivity(Intent(this,MapsActivity::class.java))
             }
+            startActivity(Intent(this,MapsActivity::class.java))
             Toast.makeText(this, size.toString(), Toast.LENGTH_SHORT).show()
         }
     }
@@ -111,9 +111,8 @@ private fun stopPeriodicLocation(){
     suspend fun saveLongLat(longitude:Double,latitude: Double){
         withContext(Dispatchers.IO) {
             database.databaseDao().insertLongLat(
-                LocationEntity(longitude,latitude)
+                LocationEntity(latitude,longitude)
             )
-            //Toast.makeText(applicationContext,"$lr",Toast.LENGTH_SHORT).show()
         }
     }
 }
